@@ -33,13 +33,35 @@ function Dashboard() {
       <div className="grid grid-cols-12 gap-6 p-6">
         <div className="col-span-12 xl:col-span-9 space-y-6">
           {accepted && (
-            <div className="rounded-xl border border-[color:var(--success)]/30 bg-[color:var(--success)]/10 p-4 text-sm text-foreground flex items-center gap-3">
-              <div className="h-6 w-6 rounded-full bg-[color:var(--success)] text-white grid place-items-center text-xs">✓</div>
-              <div>
-                <span className="font-medium">Acme Logistics updated.</span>{" "}
-                <span className="text-muted-foreground">
-                  Missing next steps dropped to 47%. Time saved this week is now 18.7h.
-                </span>
+            <div className="rounded-xl border border-[color:var(--success)]/30 bg-[color:var(--success)]/10 p-4 space-y-3">
+              <div className="flex items-start gap-3">
+                <div className="h-7 w-7 rounded-full bg-[color:var(--success)] text-white grid place-items-center text-xs shrink-0">
+                  ✓
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm font-semibold text-foreground">
+                    Acme Logistics updated. CRM data quality improved.
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Next step added · pricing objection captured · follow-up task created.
+                  </div>
+                </div>
+                <Link
+                  to="/workspace"
+                  className="text-xs font-medium text-primary hover:underline shrink-0"
+                >
+                  View deal
+                </Link>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <DiffPill label="Suggested updates pending" before="23" after="22" />
+                <DiffPill label="Missing next steps" before="48%" after="47%" />
+                <DiffPill label="Time saved this week" before="18.5h" after="18.7h" positive />
+                <DiffPill label="Acme Logistics" before="Stale" after="Updated" positive />
+              </div>
+              <div className="rounded-md bg-background/60 border border-[color:var(--success)]/20 px-3 py-2 text-xs text-foreground">
+                <span className="text-muted-foreground">Acme Logistics · next step:</span>{" "}
+                <span className="font-medium">Schedule pricing review call for Friday</span>
               </div>
             </div>
           )}
@@ -197,6 +219,37 @@ function MiniStat({ label, value }: { label: string; value: string }) {
     <div className="rounded-md bg-muted/50 px-2 py-2">
       <div className="text-[10px] text-muted-foreground uppercase tracking-wide">{label}</div>
       <div className="text-sm font-semibold text-foreground">{value}</div>
+    </div>
+  );
+}
+
+function DiffPill({
+  label,
+  before,
+  after,
+  positive,
+}: {
+  label: string;
+  before: string;
+  after: string;
+  positive?: boolean;
+}) {
+  return (
+    <div className="rounded-md bg-background border border-border px-3 py-2">
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+        {label}
+      </div>
+      <div className="mt-0.5 flex items-baseline gap-1.5 text-sm">
+        <span className="text-muted-foreground line-through">{before}</span>
+        <span className="text-muted-foreground">→</span>
+        <span
+          className={`font-semibold ${
+            positive ? "text-[color:var(--success)]" : "text-foreground"
+          }`}
+        >
+          {after}
+        </span>
+      </div>
     </div>
   );
 }
