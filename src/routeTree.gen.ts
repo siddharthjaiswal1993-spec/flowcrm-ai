@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WorkspaceRouteImport } from './routes/workspace'
 import { Route as TeamRouteImport } from './routes/team'
+import { Route as AssistantLoadingRouteImport } from './routes/assistant-loading'
 import { Route as AssistantRouteImport } from './routes/assistant'
 import { Route as IndexRouteImport } from './routes/index'
 
@@ -22,6 +23,11 @@ const WorkspaceRoute = WorkspaceRouteImport.update({
 const TeamRoute = TeamRouteImport.update({
   id: '/team',
   path: '/team',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AssistantLoadingRoute = AssistantLoadingRouteImport.update({
+  id: '/assistant-loading',
+  path: '/assistant-loading',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AssistantRoute = AssistantRouteImport.update({
@@ -38,12 +44,14 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/assistant': typeof AssistantRoute
+  '/assistant-loading': typeof AssistantLoadingRoute
   '/team': typeof TeamRoute
   '/workspace': typeof WorkspaceRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/assistant': typeof AssistantRoute
+  '/assistant-loading': typeof AssistantLoadingRoute
   '/team': typeof TeamRoute
   '/workspace': typeof WorkspaceRoute
 }
@@ -51,20 +59,28 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/assistant': typeof AssistantRoute
+  '/assistant-loading': typeof AssistantLoadingRoute
   '/team': typeof TeamRoute
   '/workspace': typeof WorkspaceRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/assistant' | '/team' | '/workspace'
+  fullPaths: '/' | '/assistant' | '/assistant-loading' | '/team' | '/workspace'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/assistant' | '/team' | '/workspace'
-  id: '__root__' | '/' | '/assistant' | '/team' | '/workspace'
+  to: '/' | '/assistant' | '/assistant-loading' | '/team' | '/workspace'
+  id:
+    | '__root__'
+    | '/'
+    | '/assistant'
+    | '/assistant-loading'
+    | '/team'
+    | '/workspace'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AssistantRoute: typeof AssistantRoute
+  AssistantLoadingRoute: typeof AssistantLoadingRoute
   TeamRoute: typeof TeamRoute
   WorkspaceRoute: typeof WorkspaceRoute
 }
@@ -83,6 +99,13 @@ declare module '@tanstack/react-router' {
       path: '/team'
       fullPath: '/team'
       preLoaderRoute: typeof TeamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/assistant-loading': {
+      id: '/assistant-loading'
+      path: '/assistant-loading'
+      fullPath: '/assistant-loading'
+      preLoaderRoute: typeof AssistantLoadingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/assistant': {
@@ -105,9 +128,20 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AssistantRoute: AssistantRoute,
+  AssistantLoadingRoute: AssistantLoadingRoute,
   TeamRoute: TeamRoute,
   WorkspaceRoute: WorkspaceRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
