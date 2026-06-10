@@ -39,9 +39,8 @@ function AssistantError() {
 
             <div className="p-6 space-y-4">
               <p className="text-sm text-foreground leading-relaxed">
-                FlowCRM AI reviews recent CRM history, call notes, and email signals to
-                draft a high-confidence update. For this deal, there has been no activity in
-                the past 22 days, so we cannot reliably suggest a next step or auto-fill
+                No recent email or call note was found for this deal. Without source
+                signals, FlowCRM AI cannot reliably suggest a next step or auto-fill
                 missing fields.
               </p>
 
@@ -51,21 +50,23 @@ function AssistantError() {
                 <SourceMissing icon={RefreshCw} label="CRM activity" detail="22 days stale" />
               </div>
 
-              <div className="rounded-md bg-muted/50 border border-border p-3 text-xs text-muted-foreground">
-                Suggested next move: log a discovery follow-up or send a re-engagement
-                email, then run FlowCRM AI again.
+              <div className="rounded-md bg-muted/50 border border-border p-3 text-xs text-foreground">
+                <span className="font-medium">Suggested manual action:</span>{" "}
+                <span className="text-muted-foreground">
+                  Create a manual follow-up or add a next step manually.
+                </span>
               </div>
             </div>
 
             <div className="border-t border-border bg-muted/30 px-6 py-4 flex flex-wrap items-center gap-3 justify-end">
               <Link
                 to="/workspace"
-                className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
+                className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
               >
-                Back to workspace
+                Dismiss
               </Link>
               <button className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-                Log activity manually
+                Create Manual Follow-up
               </button>
             </div>
           </div>
