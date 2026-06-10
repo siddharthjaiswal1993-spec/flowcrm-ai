@@ -12,7 +12,7 @@ function AssistantLoading() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const t = setTimeout(() => navigate({ to: "/assistant" }), 2600);
+    const t = setTimeout(() => navigate({ to: "/assistant" }), 1500);
     return () => clearTimeout(t);
   }, [navigate]);
 
