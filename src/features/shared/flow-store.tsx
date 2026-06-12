@@ -1,17 +1,25 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 
-type State = {
+/**
+ * Prototype-wide flow state.
+ *
+ * The only mutable state in the prototype is whether the user has accepted
+ * the AI suggestion for Acme Logistics. Every screen reads from this flag
+ * to render its "before" or "after" copy/metrics.
+ */
+
+type FlowState = {
   accepted: boolean;
   accept: () => void;
   reset: () => void;
 };
 
-const Ctx = createContext<State | null>(null);
+const FlowContext = createContext<FlowState | null>(null);
 
 export function FlowProvider({ children }: { children: ReactNode }) {
   const [accepted, setAccepted] = useState(false);
   return (
-    <Ctx.Provider
+    <FlowContext.Provider
       value={{
         accepted,
         accept: () => setAccepted(true),
@@ -19,16 +27,20 @@ export function FlowProvider({ children }: { children: ReactNode }) {
       }}
     >
       {children}
-    </Ctx.Provider>
+    </FlowContext.Provider>
   );
 }
 
 export function useFlow() {
-  const v = useContext(Ctx);
+  const v = useContext(FlowContext);
   if (!v) throw new Error("FlowProvider missing");
   return v;
 }
 
+/**
+ * Derived dashboard metrics. Values shift slightly once the Acme Logistics
+ * suggestion has been accepted to make the impact of one update visible.
+ */
 export function metrics(accepted: boolean) {
   return {
     adoption: 18,

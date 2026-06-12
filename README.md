@@ -29,37 +29,101 @@ already read the signals and drafted the update.
 
 ## Key Screens
 
-1. **Adoption Diagnostic (`/`)** — Landing dashboard. Shows the 18% weekly
-   active adoption KPI, qualitative quotes explaining why, and the primary
-   CTA: *Review Today's CRM Priorities*.
-2. **Role-Based Workspace (`/workspace`)** — The Sales Rep's prioritized
-   daily worklist. Highlights the stale Acme Logistics deal with a
-   *Fix with AI* action.
-3. **AI Assistant (`/assistant`)** — Focused flow for the Acme deal. Shows
-   source signals (call notes, emails), the AI-suggested field updates, and
-   an *Accept AI Update* action.
-4. **Manager View (`/team`)** — Adoption by team segment, data freshness,
-   and forecast confidence — the manager's payoff for rep adoption.
+Screen names match the PRD (`PRD.md`).
+
+| # | PRD name                              | Route                | Component file                                                |
+| - | ------------------------------------- | -------------------- | ------------------------------------------------------------- |
+| 1 | Adoption Diagnostic Dashboard         | `/`                  | `src/features/dashboard/AdoptionDiagnosticDashboard.tsx`      |
+| 2 | Role-Based Workspace                  | `/workspace`         | `src/features/workspace/RoleBasedWorkspace.tsx`               |
+| 3 | AI Assistant Loading                  | `/assistant-loading` | `src/features/assistant/AssistantLoadingScreen.tsx`           |
+| 4 | AI Assistant Recommendation Review    | `/assistant`         | `src/features/assistant/AssistantRecommendationReview.tsx`    |
+| 5 | AI Assistant Empty Signals            | `/assistant-error`   | `src/features/assistant/AssistantEmptySignalsScreen.tsx`      |
+| 6 | Manager View                          | `/team`              | `src/features/team/ManagerView.tsx`                           |
 
 ## Golden Path
 
-Dashboard → Review Today's CRM Priorities → Fix Acme Logistics with AI →
-Accept AI Update → Return to Dashboard with updated metrics
-(*Missing next steps* drops to 47%, *Time saved* rises to 18.7h).
+`/` → *Review today's CRM priorities* → `/workspace` → *Fix with AI* on
+Acme Logistics → `/assistant-loading` (auto-advances after ~1.5s) →
+`/assistant` → *Accept AI Update* → back to `/` with a success banner and
+updated KPIs (*Missing next steps* 48 → 47%, *Time saved* 18.5 → 18.7h,
+Acme status Stale → Updated).
+
+Alternate paths:
+- *Fix with AI* on Vertex Manufacturing → `/assistant-error` (empty-signals
+  state — no call notes, no email).
+- *Edit before saving* → modal lets the user adjust each field, then saves.
+- *Reject suggestion* → returns to `/workspace`, Acme stays stale.
+- Toggle *Simulate save failure* on the assistant screen → save errors
+  surface a *Save as Draft / Try Again* dialog.
+
+## Project Structure
+
+Code is grouped by **feature**, not by file type. Each feature owns its
+data (mock state, types, constants) and its display components. Routes are
+thin wrappers that mount a feature's screen component.
+
+```
+src/
+├── routes/                         # TanStack Start file-based routes
+│   ├── __root.tsx                  # App shell + FlowProvider
+│   ├── index.tsx                   # mounts AdoptionDiagnosticDashboard
+│   ├── workspace.tsx               # mounts RoleBasedWorkspace
+│   ├── assistant.tsx               # mounts AssistantRecommendationReview
+│   ├── assistant-loading.tsx       # mounts AssistantLoadingScreen
+│   ├── assistant-error.tsx         # mounts AssistantEmptySignalsScreen
+│   └── team.tsx                    # mounts ManagerView
+│
+├── features/                       # Feature folders (data + display)
+│   ├── shared/
+│   │   └── flow-store.tsx          # FlowProvider, useFlow, metrics()
+│   ├── dashboard/
+│   │   ├── data.ts                 # blockers, quotes, shortcuts
+│   │   └── AdoptionDiagnosticDashboard.tsx
+│   ├── workspace/
+│   │   ├── data.ts                 # Deal type, baseDeals, tabs, helpers
+│   │   └── RoleBasedWorkspace.tsx
+│   ├── assistant/
+│   │   ├── data.ts                 # signals, defaults, timings, steps
+│   │   ├── primitives.tsx          # SectionCard, Modal, SkeletonCard, …
+│   │   ├── AssistantLoadingScreen.tsx
+│   │   ├── AssistantRecommendationReview.tsx
+│   │   └── AssistantEmptySignalsScreen.tsx
+│   └── team/
+│       ├── data.ts                 # teams, insights, tone helpers
+│       └── ManagerView.tsx
+│
+├── components/
+│   ├── AppLayout.tsx               # sidebar + header shell, KpiCard, Section
+│   └── ui/                         # shadcn primitives
+│
+├── lib/                            # cross-cutting non-feature utilities
+├── styles.css                      # design tokens
+├── router.tsx, start.ts, server.ts # framework wiring
+└── routeTree.gen.ts                # auto-generated; do not edit
+```
+
+### Data ↔ display separation
+
+- **`data.ts`** files hold only static mock data, types, and pure helper
+  functions (e.g. `dealsWithAcceptedState`, `toneForAdoption`,
+  `fixHrefFor`). No JSX, no React imports.
+- **Screen components** (`*.tsx`) import from `./data` and render. State
+  that drives multiple screens lives in `features/shared/flow-store.tsx`;
+  state local to one screen stays in that component.
+- Reusable display primitives within a feature live in a sibling file
+  (e.g. `assistant/primitives.tsx`). Truly cross-feature layout lives
+  under `src/components/`.
 
 ## Main Build Decisions
 
-- **TanStack Start + file-based routing** — four route files (`index`,
-  `workspace`, `assistant`, `team`) keep each screen independently shareable
-  and the navigation type-safe.
-- **Local React Context store (`src/lib/store.tsx`)** — a single
-  `FlowProvider` toggles the Acme deal between *Stale* and *Updated* so the
-  golden path mutates real dashboard KPIs without a backend. No database is
-  needed for a usability test.
+- **TanStack Start + file-based routing** — each screen has its own URL so
+  the flow is shareable, deep-linkable, and SEO-friendly.
+- **Single React Context store** (`features/shared/flow-store.tsx`) — one
+  `accepted` flag drives every "before vs after" copy and metric on the
+  golden path. No database is needed for a usability test.
 - **Workday-inspired design system** — semantic tokens in `src/styles.css`
   (navy headings, calm blue primary, explicit danger/warning/success tones)
-  applied through `AppLayout`, `KpiCard`, and `Section` so every screen feels
-  like the same enterprise product.
+  applied through `AppLayout`, `KpiCard`, and `Section`.
 - **Prototype, not production** — no auth, no real CRM integration, no LLM
   call. The AI suggestion is scripted to make the *test* unambiguous: are
   users faster and more confident than with the current CRM?
