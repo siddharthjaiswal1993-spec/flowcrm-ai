@@ -11,7 +11,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { FlowProvider } from "../lib/store";
+import { FlowProvider } from "../features/shared/flow-store";
 
 function NotFoundComponent() {
   return (
