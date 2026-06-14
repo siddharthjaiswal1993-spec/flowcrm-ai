@@ -1,9 +1,10 @@
 # FlowCRM AI Workspace
 
-An AI-native adoption layer on top of an existing internal CRM. This is a
-high-fidelity, clickable Lovable prototype — not a CRM rebuild — designed to
-test whether a lightweight workflow + intelligence layer can move weekly active
-adoption from 18% to something people actually use.
+CRM adoption layer — prioritized daily worklist and AI-drafted field updates from existing call notes, email, and calendar signals.
+
+**Status:** Prototype · TanStack Start · Scripted AI suggestions and mock deal data
+
+A high-fidelity, clickable prototype — not a CRM rebuild — designed to test whether a lightweight workflow layer can move weekly active CRM adoption from 18% to something people actually use.
 
 ## Hypothesis
 
@@ -136,3 +137,29 @@ bun run dev
 ```
 
 Then open the preview and follow the golden path from `/`.
+
+---
+
+## Build / Maintain / Improve / Kill
+
+**Build** — Real signal ingestion (Gong call notes, Gmail, Google Calendar) and CRM write-back API integration. The prototype simulates these; production requires live connectors and a signal freshness model that knows when data is stale.
+
+**Maintain** — The evidence-before-recommendation layout. The rep sees source signals before the AI-drafted update. If this order is reversed — recommendation first, evidence second — the rep stops reading the evidence and starts rubber-stamping, which produces bad CRM data.
+
+**Improve** — Signal quality scoring. Not all call notes are equally reliable. A well-structured Gong call note is more useful than a hastily typed manual note. Weight signals by source type, recency, and completeness before feeding them to the draft generation step.
+
+**Kill** — Any acceptance path that does not show the rep the source signals. The one-click accept without evidence review is the feature that seems like good UX but destroys the product's core value: verified, trusted CRM data.
+
+---
+
+## What I Built
+
+| Artifact | Description |
+|---|---|
+| 6-screen TanStack prototype | Complete adoption loop — diagnostic dashboard, prioritized worklist, AI loading state, recommendation review, manager view, and empty-signals error state |
+| PRD | Full product requirements covering screens, user flows, hypothesis, metrics, and mocked vs. real map (`PRD.md`) |
+| Standard portfolio docs | PORTFOLIO_AUDIT, PRODUCT_THESIS, WHAT_I_BUILT, OUTCOME_MODEL, AI_PRODUCT_JUDGMENT |
+
+---
+
+*Independent product exploration. Uses synthetic examples, mock data, and scripted AI suggestions.*
