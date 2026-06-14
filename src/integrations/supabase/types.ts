@@ -14,16 +14,210 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      ai_suggestions: {
+        Row: {
+          auto_filled_fields: number | null
+          confidence: number | null
+          created_at: string
+          deal_id: string
+          follow_up: string | null
+          health: string | null
+          id: string
+          next_step: string | null
+          objection: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["suggestion_status"]
+          total_fields: number | null
+          updated_at: string
+        }
+        Insert: {
+          auto_filled_fields?: number | null
+          confidence?: number | null
+          created_at?: string
+          deal_id: string
+          follow_up?: string | null
+          health?: string | null
+          id?: string
+          next_step?: string | null
+          objection?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["suggestion_status"]
+          total_fields?: number | null
+          updated_at?: string
+        }
+        Update: {
+          auto_filled_fields?: number | null
+          confidence?: number | null
+          created_at?: string
+          deal_id?: string
+          follow_up?: string | null
+          health?: string | null
+          id?: string
+          next_step?: string | null
+          objection?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["suggestion_status"]
+          total_fields?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_suggestions_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deals: {
+        Row: {
+          account: string
+          created_at: string
+          id: string
+          last_activity_at: string | null
+          owner_id: string | null
+          problem: string | null
+          stage: string
+          status: Database["public"]["Enums"]["deal_status"]
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          account: string
+          created_at?: string
+          id?: string
+          last_activity_at?: string | null
+          owner_id?: string | null
+          problem?: string | null
+          stage: string
+          status?: Database["public"]["Enums"]["deal_status"]
+          updated_at?: string
+          value?: number
+        }
+        Update: {
+          account?: string
+          created_at?: string
+          id?: string
+          last_activity_at?: string | null
+          owner_id?: string | null
+          problem?: string | null
+          stage?: string
+          status?: Database["public"]["Enums"]["deal_status"]
+          updated_at?: string
+          value?: number
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          full_name: string
+          id: string
+          team: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          full_name: string
+          id: string
+          team?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          full_name?: string
+          id?: string
+          team?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      signals: {
+        Row: {
+          content: string
+          created_at: string
+          deal_id: string
+          id: string
+          kind: Database["public"]["Enums"]["signal_kind"]
+          occurred_at: string
+          source_label: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          deal_id: string
+          id?: string
+          kind: Database["public"]["Enums"]["signal_kind"]
+          occurred_at?: string
+          source_label: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          deal_id?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["signal_kind"]
+          occurred_at?: string
+          source_label?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signals_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "rep" | "manager" | "admin"
+      deal_status: "Stale" | "At risk" | "Active" | "Updated"
+      signal_kind: "call" | "email" | "crm" | "meeting"
+      suggestion_status:
+        | "pending"
+        | "accepted"
+        | "edited"
+        | "rejected"
+        | "draft"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +344,11 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["rep", "manager", "admin"],
+      deal_status: ["Stale", "At risk", "Active", "Updated"],
+      signal_kind: ["call", "email", "crm", "meeting"],
+      suggestion_status: ["pending", "accepted", "edited", "rejected", "draft"],
+    },
   },
 } as const
