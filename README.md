@@ -136,3 +136,17 @@ bun run dev
 ```
 
 Then open the preview and follow the golden path from `/`.
+
+---
+
+## What I Built
+
+| Artifact | Description |
+|---|---|
+| 6-screen TanStack prototype | Complete adoption loop — diagnostic dashboard, prioritized worklist, AI loading state, recommendation review, manager view, and empty-signals error state |
+| PRD | Full product requirements covering screens, user flows, hypothesis, metrics, and mocked vs. real map (`PRD.md`) |
+| Standard portfolio docs | PORTFOLIO_AUDIT, PRODUCT_THESIS, WHAT_I_BUILT, OUTCOME_MODEL, AI_PRODUCT_JUDGMENT |
+
+---
+
+*Independent product exploration. Uses synthetic examples, mock data, and scripted AI suggestions.*
