@@ -1,6 +1,8 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { AppLayout } from "@/components/AppLayout";
-import { useFlow } from "@/features/shared/flow-store";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { acceptSuggestion, getDealByAccount } from "@/lib/deals.functions";
 import { useState } from "react";
 import {
   Sparkles,
@@ -11,8 +13,12 @@ import {
   ShieldCheck,
   TrendingUp,
   Info,
+  Phone,
+  Mail,
+  FileText,
+  CalendarDays,
 } from "lucide-react";
-import { acmeSignals, acmeSuggestedDefaults, SAVE_DURATION_MS } from "./data";
+import { acmeSuggestedDefaults } from "./data";
 import {
   EditField,
   ImpactItem,
@@ -25,41 +31,93 @@ import {
   Suggestion,
 } from "./primitives";
 
-type SaveState = "idle" | "saving" | "error" | "draft";
+type SaveState = "idle" | "saving" | "error" | "draft" | "saved";
+
+const ACCOUNT = "Acme Logistics";
+
+function iconForKind(kind: "call" | "email" | "crm" | "meeting") {
+  if (kind === "call") return Phone;
+  if (kind === "email") return Mail;
+  if (kind === "meeting") return CalendarDays;
+  return FileText;
+}
 
 /** PRD screen #4 — AI Assistant Recommendation Review. */
 export function AssistantRecommendationReview() {
-  const { accept } = useFlow();
   const navigate = useNavigate();
+  const qc = useQueryClient();
+  const fetchDeal = useServerFn(getDealByAccount);
+  const acceptFn = useServerFn(acceptSuggestion);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["deal", ACCOUNT],
+    queryFn: () => fetchDeal({ data: { account: ACCOUNT } }),
+  });
 
   const [editOpen, setEditOpen] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>("idle");
-  const [simulateFailure, setSimulateFailure] = useState(false);
+  const [edited, setEdited] = useState(false);
 
   const [nextStep, setNextStep] = useState(acmeSuggestedDefaults.nextStep);
   const [objection, setObjection] = useState(acmeSuggestedDefaults.objection);
   const [followUp, setFollowUp] = useState(acmeSuggestedDefaults.followUp);
   const [health, setHealth] = useState(acmeSuggestedDefaults.health);
 
-  const disabled = saveState === "saving";
+  const save = useMutation({
+    mutationFn: async () => {
+      if (!data?.deal.id) throw new Error("Deal not found");
+      return acceptFn({
+        data: {
+          dealId: data.deal.id,
+          nextStep,
+          objection,
+          followUp,
+          health,
+          edited,
+        },
+      });
+    },
+    onMutate: () => setSaveState("saving"),
+    onSuccess: () => {
+      qc.invalidateQueries();
+      navigate({ to: "/" });
+    },
+    onError: () => setSaveState("error"),
+  });
 
-  const startSave = () => {
-    setSaveState("saving");
-    setTimeout(() => {
-      if (simulateFailure) {
-        setSaveState("error");
-      } else {
-        accept();
-        navigate({ to: "/" });
-      }
-    }, SAVE_DURATION_MS);
-  };
+  const disabled = save.isPending;
+  const alreadyAccepted = data?.latestSuggestion?.status === "accepted" || data?.latestSuggestion?.status === "edited";
+
+  if (isLoading) {
+    return (
+      <AppLayout title="AI CRM Assistant" subtitle="Loading…">
+        <div className="p-12 text-center text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 inline animate-spin mr-2" /> Loading deal…
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (!data) {
+    return (
+      <AppLayout title="AI CRM Assistant" subtitle="Deal not found">
+        <div className="p-12 text-center">
+          <p className="text-sm text-muted-foreground">
+            We couldn't find {ACCOUNT} in your workspace. Seed demo data from the dashboard first.
+          </p>
+          <Link to="/" className="mt-4 inline-block text-sm text-primary hover:underline">
+            Go to dashboard
+          </Link>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout
       title="AI CRM Assistant"
-      subtitle="Reviewing Acme Logistics · $84,000 · Proposal"
+      subtitle={`Reviewing ${data.deal.account} · $${data.deal.value.toLocaleString()} · ${data.deal.stage}`}
     >
       <div className="p-6">
         <Link
@@ -75,8 +133,18 @@ export function AssistantRecommendationReview() {
             <div className="text-sm text-foreground">
               <span className="font-medium">Draft saved.</span>{" "}
               <span className="text-muted-foreground">
-                Acme Logistics still needs to be updated in CRM.
+                {data.deal.account} still needs to be updated in CRM.
               </span>
+            </div>
+          </div>
+        )}
+
+        {alreadyAccepted && (
+          <div className="mb-4 rounded-xl border border-[color:var(--success)]/30 bg-[color:var(--success)]/10 px-4 py-3 flex items-start gap-3">
+            <ShieldCheck className="h-4 w-4 text-[color:var(--success)] mt-0.5" />
+            <div className="text-sm text-foreground">
+              <span className="font-medium">This deal already has an accepted AI update.</span>{" "}
+              <span className="text-muted-foreground">You can accept again to overwrite.</span>
             </div>
           </div>
         )}
@@ -87,64 +155,51 @@ export function AssistantRecommendationReview() {
             <SectionCard
               eyebrow="Section 3"
               title="Source signals reviewed"
-              meta="AI reviewed 3 available sources."
+              meta={`AI reviewed ${data.signals.length} available source${data.signals.length === 1 ? "" : "s"}.`}
             >
-              {acmeSignals.map((s) => (
-                <SignalCard key={s.source} icon={s.icon} source={s.source} text={s.text} />
-              ))}
+              {data.signals.length === 0 ? (
+                <div className="text-xs text-muted-foreground">No signals on file.</div>
+              ) : (
+                data.signals.map((s) => (
+                  <SignalCard key={s.id} icon={iconForKind(s.kind)} source={s.source_label} text={s.content} />
+                ))
+              )}
             </SectionCard>
-
-            <div className="rounded-md border border-dashed border-border bg-card px-3 py-2.5 text-[11px] text-muted-foreground flex items-center justify-between">
-              <span>Demo: simulate save failure</span>
-              <button
-                onClick={() => setSimulateFailure((v) => !v)}
-                className={`h-4 w-8 rounded-full transition relative ${
-                  simulateFailure ? "bg-[color:var(--danger)]" : "bg-muted-foreground/40"
-                }`}
-                aria-pressed={simulateFailure}
-              >
-                <span
-                  className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition ${
-                    simulateFailure ? "left-4" : "left-0.5"
-                  }`}
-                />
-              </button>
-            </div>
           </div>
 
           {/* RIGHT: The structured AI panel */}
           <div className="col-span-12 lg:col-span-8 space-y-4">
             <SectionCard eyebrow="Section 1" title="Selected deal">
               <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                <KV label="Account" value="Acme Logistics" strong />
+                <KV label="Account" value={data.deal.account} strong />
                 <KV
                   label="Status"
                   value={
                     <span className="inline-flex items-center gap-1 rounded-full bg-[color:var(--warning)]/15 text-[color:var(--warning)] px-2 py-0.5 text-[11px] font-medium">
-                      Stale
+                      {data.deal.status}
                     </span>
                   }
                 />
-                <KV label="Deal value" value="$84,000" strong />
-                <KV label="Stage" value="Proposal" />
-                <KV label="Owner" value="Riya Sharma" />
-                <KV label="Last activity" value="18 days ago" tone="warning" />
+                <KV label="Deal value" value={`$${data.deal.value.toLocaleString()}`} strong />
+                <KV label="Stage" value={data.deal.stage} />
+                <KV label="Owner" value={data.deal.owner_name} />
+                <KV label="Last activity" value={data.deal.last_activity_human} tone="warning" />
               </div>
             </SectionCard>
 
             <SectionCard eyebrow="Section 2" title="Current CRM state">
               <div className="space-y-2 text-sm">
-                <StateRow label="Next step" value="Empty" missing />
-                <StateRow label="Pricing objection" value="Not captured" missing />
-                <StateRow label="Follow-up task" value="Not created" missing />
+                <StateRow label="Next step" value={alreadyAccepted ? data.latestSuggestion!.next_step ?? "—" : "Empty"} missing={!alreadyAccepted} />
+                <StateRow label="Pricing objection" value={alreadyAccepted ? data.latestSuggestion!.objection ?? "—" : "Not captured"} missing={!alreadyAccepted} />
+                <StateRow label="Follow-up task" value={alreadyAccepted ? data.latestSuggestion!.follow_up ?? "—" : "Not created"} missing={!alreadyAccepted} />
               </div>
               <div className="mt-4 rounded-md bg-muted/50 p-3">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-muted-foreground">Required fields completed</span>
-                  <span className="font-medium text-foreground">2 of 8</span>
+                  <span className="font-medium text-foreground">{alreadyAccepted ? "8" : "2"} of 8</span>
                 </div>
                 <div className="mt-2 h-1.5 w-full rounded-full bg-border overflow-hidden">
-                  <div className="h-full bg-[color:var(--warning)]" style={{ width: "25%" }} />
+                  <div className="h-full bg-[color:var(--warning)]" style={{ width: alreadyAccepted ? "100%" : "25%" }} />
                 </div>
               </div>
             </SectionCard>
@@ -195,8 +250,8 @@ export function AssistantRecommendationReview() {
                   <span className="font-medium text-[color:var(--success)]">8 / 8</span> fields
                 </ImpactItem>
                 <ImpactItem>
-                  Reduce pending AI updates from <span className="font-medium">23</span> to{" "}
-                  <span className="font-medium text-[color:var(--success)]">22</span>
+                  Mark <span className="font-medium">{data.deal.account}</span> as{" "}
+                  <span className="font-medium text-[color:var(--success)]">Updated</span>
                 </ImpactItem>
               </ul>
             </SectionCard>
@@ -221,7 +276,7 @@ export function AssistantRecommendationReview() {
                   <Pencil className="h-3.5 w-3.5" /> Edit Before Saving
                 </button>
                 <button
-                  onClick={startSave}
+                  onClick={() => save.mutate()}
                   disabled={disabled}
                   className="inline-flex items-center gap-1.5 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
                 >
@@ -277,7 +332,8 @@ export function AssistantRecommendationReview() {
             <button
               onClick={() => {
                 setEditOpen(false);
-                startSave();
+                setEdited(true);
+                save.mutate();
               }}
               className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
             >
@@ -298,8 +354,8 @@ export function AssistantRecommendationReview() {
                 Reject AI suggestion?
               </h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                This will keep Acme Logistics marked as{" "}
-                <span className="font-medium text-foreground">stale</span>. Missing next step
+                This will keep {data.deal.account} marked as{" "}
+                <span className="font-medium text-foreground">{data.deal.status.toLowerCase()}</span>. Missing next step
                 and follow-up task will remain unresolved.
               </p>
             </div>
@@ -332,7 +388,7 @@ export function AssistantRecommendationReview() {
               Saving update to CRM…
             </div>
             <div className="text-xs text-muted-foreground">
-              Writing 8 fields to Acme Logistics.
+              Writing 8 fields to {data.deal.account}.
             </div>
           </div>
         </SaveOverlay>
@@ -349,7 +405,7 @@ export function AssistantRecommendationReview() {
                 Update could not be saved.
               </h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                The CRM connection timed out. Your AI suggestion is still saved as a draft.
+                {save.error instanceof Error ? save.error.message : "The CRM connection timed out."}
               </p>
             </div>
           </div>
@@ -367,7 +423,7 @@ export function AssistantRecommendationReview() {
               Save as Draft
             </button>
             <button
-              onClick={startSave}
+              onClick={() => save.mutate()}
               className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
             >
               Try Again

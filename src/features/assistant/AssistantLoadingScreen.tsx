@@ -31,7 +31,7 @@ export function AssistantLoadingScreen() {
                   Acme Logistics
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  Riya Sharma · Proposal · $84,000 · Last activity 18 days ago
+                  Proposal · $84,000 · Last activity 18 days ago
                 </div>
               </div>
               <span className="inline-flex items-center gap-1 rounded-full bg-[color:var(--danger)]/10 text-[color:var(--danger)] px-2 py-0.5 text-[11px] font-medium">

@@ -1,5 +1,7 @@
 import { AppLayout, KpiCard, Section } from "@/components/AppLayout";
-import { useFlow, metrics } from "@/features/shared/flow-store";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { getDashboardMetrics } from "@/lib/deals.functions";
 import { Download, BellRing, Target } from "lucide-react";
 import {
   adoptionInsights,
@@ -10,17 +12,24 @@ import {
 
 /** PRD screen #6 — Manager View (Team Adoption and Data Quality). */
 export function ManagerView() {
-  const { accepted } = useFlow();
-  const m = metrics(accepted);
+  const fetchMetrics = useServerFn(getDashboardMetrics);
+  const { data: m } = useQuery({
+    queryKey: ["dashboard-metrics"],
+    queryFn: () => fetchMetrics(),
+  });
+  const dataQuality = m && m.totalDeals > 0
+    ? Math.round((1 - (m.stale + m.missingNext) / Math.max(1, m.totalDeals * 2)) * 100)
+    : 54;
+
   return (
     <AppLayout title="Team Adoption and Data Quality" subtitle="Manager view · last 7 days">
       <div className="p-6 space-y-6">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           <KpiCard label="CRM adoption" value="18%" hint="Weekly active" tone="danger" />
-          <KpiCard label="Team active users" value={`${m.wau} / ${m.wauTotal}`} />
-          <KpiCard label="Stale records" value="61%" tone="danger" />
-          <KpiCard label="Forecast confidence" value="41%" tone="warning" />
-          <KpiCard label="Data quality" value={`${m.dataQuality} / 100`} tone="warning" />
+          <KpiCard label="My pipeline" value={`${m?.totalDeals ?? 0} deals`} />
+          <KpiCard label="Stale records" value={`${m?.stale ?? 0}`} tone="danger" />
+          <KpiCard label="Pending AI updates" value={`${m?.pendingSuggestions ?? 0}`} tone="warning" />
+          <KpiCard label="Data quality" value={`${dataQuality} / 100`} tone="warning" />
         </div>
 
         <div className="grid grid-cols-12 gap-6">
