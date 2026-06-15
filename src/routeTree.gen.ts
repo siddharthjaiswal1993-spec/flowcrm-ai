@@ -9,73 +9,91 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as WorkspaceRouteImport } from './routes/workspace'
-import { Route as TeamRouteImport } from './routes/team'
-import { Route as AssistantLoadingRouteImport } from './routes/assistant-loading'
-import { Route as AssistantErrorRouteImport } from './routes/assistant-error'
-import { Route as AssistantRouteImport } from './routes/assistant'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedWorkspaceRouteImport } from './routes/_authenticated/workspace'
+import { Route as AuthenticatedTeamRouteImport } from './routes/_authenticated/team'
+import { Route as AuthenticatedAssistantLoadingRouteImport } from './routes/_authenticated/assistant-loading'
+import { Route as AuthenticatedAssistantErrorRouteImport } from './routes/_authenticated/assistant-error'
+import { Route as AuthenticatedAssistantRouteImport } from './routes/_authenticated/assistant'
 
-const WorkspaceRoute = WorkspaceRouteImport.update({
-  id: '/workspace',
-  path: '/workspace',
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TeamRoute = TeamRouteImport.update({
-  id: '/team',
-  path: '/team',
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AssistantLoadingRoute = AssistantLoadingRouteImport.update({
-  id: '/assistant-loading',
-  path: '/assistant-loading',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AssistantErrorRoute = AssistantErrorRouteImport.update({
-  id: '/assistant-error',
-  path: '/assistant-error',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AssistantRoute = AssistantRouteImport.update({
-  id: '/assistant',
-  path: '/assistant',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const IndexRoute = IndexRouteImport.update({
+const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedWorkspaceRoute = AuthenticatedWorkspaceRouteImport.update({
+  id: '/workspace',
+  path: '/workspace',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedTeamRoute = AuthenticatedTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAssistantLoadingRoute =
+  AuthenticatedAssistantLoadingRouteImport.update({
+    id: '/assistant-loading',
+    path: '/assistant-loading',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAssistantErrorRoute =
+  AuthenticatedAssistantErrorRouteImport.update({
+    id: '/assistant-error',
+    path: '/assistant-error',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAssistantRoute = AuthenticatedAssistantRouteImport.update({
+  id: '/assistant',
+  path: '/assistant',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/assistant': typeof AssistantRoute
-  '/assistant-error': typeof AssistantErrorRoute
-  '/assistant-loading': typeof AssistantLoadingRoute
-  '/team': typeof TeamRoute
-  '/workspace': typeof WorkspaceRoute
+  '/': typeof AuthenticatedIndexRoute
+  '/auth': typeof AuthRoute
+  '/assistant': typeof AuthenticatedAssistantRoute
+  '/assistant-error': typeof AuthenticatedAssistantErrorRoute
+  '/assistant-loading': typeof AuthenticatedAssistantLoadingRoute
+  '/team': typeof AuthenticatedTeamRoute
+  '/workspace': typeof AuthenticatedWorkspaceRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/assistant': typeof AssistantRoute
-  '/assistant-error': typeof AssistantErrorRoute
-  '/assistant-loading': typeof AssistantLoadingRoute
-  '/team': typeof TeamRoute
-  '/workspace': typeof WorkspaceRoute
+  '/auth': typeof AuthRoute
+  '/assistant': typeof AuthenticatedAssistantRoute
+  '/assistant-error': typeof AuthenticatedAssistantErrorRoute
+  '/assistant-loading': typeof AuthenticatedAssistantLoadingRoute
+  '/team': typeof AuthenticatedTeamRoute
+  '/workspace': typeof AuthenticatedWorkspaceRoute
+  '/': typeof AuthenticatedIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/assistant': typeof AssistantRoute
-  '/assistant-error': typeof AssistantErrorRoute
-  '/assistant-loading': typeof AssistantLoadingRoute
-  '/team': typeof TeamRoute
-  '/workspace': typeof WorkspaceRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
+  '/_authenticated/assistant': typeof AuthenticatedAssistantRoute
+  '/_authenticated/assistant-error': typeof AuthenticatedAssistantErrorRoute
+  '/_authenticated/assistant-loading': typeof AuthenticatedAssistantLoadingRoute
+  '/_authenticated/team': typeof AuthenticatedTeamRoute
+  '/_authenticated/workspace': typeof AuthenticatedWorkspaceRoute
+  '/_authenticated/': typeof AuthenticatedIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/auth'
     | '/assistant'
     | '/assistant-error'
     | '/assistant-loading'
@@ -83,85 +101,115 @@ export interface FileRouteTypes {
     | '/workspace'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/'
+    | '/auth'
     | '/assistant'
     | '/assistant-error'
     | '/assistant-loading'
     | '/team'
     | '/workspace'
+    | '/'
   id:
     | '__root__'
-    | '/'
-    | '/assistant'
-    | '/assistant-error'
-    | '/assistant-loading'
-    | '/team'
-    | '/workspace'
+    | '/_authenticated'
+    | '/auth'
+    | '/_authenticated/assistant'
+    | '/_authenticated/assistant-error'
+    | '/_authenticated/assistant-loading'
+    | '/_authenticated/team'
+    | '/_authenticated/workspace'
+    | '/_authenticated/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  AssistantRoute: typeof AssistantRoute
-  AssistantErrorRoute: typeof AssistantErrorRoute
-  AssistantLoadingRoute: typeof AssistantLoadingRoute
-  TeamRoute: typeof TeamRoute
-  WorkspaceRoute: typeof WorkspaceRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/workspace': {
-      id: '/workspace'
-      path: '/workspace'
-      fullPath: '/workspace'
-      preLoaderRoute: typeof WorkspaceRouteImport
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/team': {
-      id: '/team'
-      path: '/team'
-      fullPath: '/team'
-      preLoaderRoute: typeof TeamRouteImport
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/assistant-loading': {
-      id: '/assistant-loading'
-      path: '/assistant-loading'
-      fullPath: '/assistant-loading'
-      preLoaderRoute: typeof AssistantLoadingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/assistant-error': {
-      id: '/assistant-error'
-      path: '/assistant-error'
-      fullPath: '/assistant-error'
-      preLoaderRoute: typeof AssistantErrorRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/assistant': {
-      id: '/assistant'
-      path: '/assistant'
-      fullPath: '/assistant'
-      preLoaderRoute: typeof AssistantRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/': {
-      id: '/'
+    '/_authenticated/': {
+      id: '/_authenticated/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/workspace': {
+      id: '/_authenticated/workspace'
+      path: '/workspace'
+      fullPath: '/workspace'
+      preLoaderRoute: typeof AuthenticatedWorkspaceRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/team': {
+      id: '/_authenticated/team'
+      path: '/team'
+      fullPath: '/team'
+      preLoaderRoute: typeof AuthenticatedTeamRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/assistant-loading': {
+      id: '/_authenticated/assistant-loading'
+      path: '/assistant-loading'
+      fullPath: '/assistant-loading'
+      preLoaderRoute: typeof AuthenticatedAssistantLoadingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/assistant-error': {
+      id: '/_authenticated/assistant-error'
+      path: '/assistant-error'
+      fullPath: '/assistant-error'
+      preLoaderRoute: typeof AuthenticatedAssistantErrorRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/assistant': {
+      id: '/_authenticated/assistant'
+      path: '/assistant'
+      fullPath: '/assistant'
+      preLoaderRoute: typeof AuthenticatedAssistantRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
   }
 }
 
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAssistantRoute: typeof AuthenticatedAssistantRoute
+  AuthenticatedAssistantErrorRoute: typeof AuthenticatedAssistantErrorRoute
+  AuthenticatedAssistantLoadingRoute: typeof AuthenticatedAssistantLoadingRoute
+  AuthenticatedTeamRoute: typeof AuthenticatedTeamRoute
+  AuthenticatedWorkspaceRoute: typeof AuthenticatedWorkspaceRoute
+  AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAssistantRoute: AuthenticatedAssistantRoute,
+  AuthenticatedAssistantErrorRoute: AuthenticatedAssistantErrorRoute,
+  AuthenticatedAssistantLoadingRoute: AuthenticatedAssistantLoadingRoute,
+  AuthenticatedTeamRoute: AuthenticatedTeamRoute,
+  AuthenticatedWorkspaceRoute: AuthenticatedWorkspaceRoute,
+  AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  AssistantRoute: AssistantRoute,
-  AssistantErrorRoute: AssistantErrorRoute,
-  AssistantLoadingRoute: AssistantLoadingRoute,
-  TeamRoute: TeamRoute,
-  WorkspaceRoute: WorkspaceRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
