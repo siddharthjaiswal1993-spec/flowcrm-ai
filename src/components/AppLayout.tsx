@@ -1,4 +1,6 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import {
   LayoutDashboard,
   ListChecks,
@@ -9,7 +11,7 @@ import {
   Sparkles,
   Search,
   Bell,
-  Settings,
+  LogOut,
 } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -35,6 +37,15 @@ export function AppLayout({
   actions?: ReactNode;
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+
+  const handleSignOut = async () => {
+    await qc.cancelQueries();
+    qc.clear();
+    await supabase.auth.signOut();
+    navigate({ to: "/auth", replace: true });
+  };
 
   return (
     <div className="flex min-h-screen w-full bg-background text-foreground">
@@ -95,8 +106,12 @@ export function AppLayout({
           <button className="h-9 w-9 grid place-items-center rounded-md hover:bg-muted text-muted-foreground">
             <Bell className="h-4 w-4" />
           </button>
-          <button className="h-9 w-9 grid place-items-center rounded-md hover:bg-muted text-muted-foreground">
-            <Settings className="h-4 w-4" />
+          <button
+            onClick={handleSignOut}
+            title="Sign out"
+            className="h-9 w-9 grid place-items-center rounded-md hover:bg-muted text-muted-foreground"
+          >
+            <LogOut className="h-4 w-4" />
           </button>
           <div className="h-9 w-9 rounded-full bg-primary/15 text-primary grid place-items-center text-xs font-semibold">
             RS
