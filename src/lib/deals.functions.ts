@@ -168,6 +168,12 @@ export type DealDetail = {
     objection: string | null;
     follow_up: string | null;
     health: string | null;
+    reasoning: string | null;
+    confidence: number | null;
+    auto_filled_fields: number | null;
+    total_fields: number | null;
+    auto_filled_field_names: string[];
+    impact_preview: string[];
   } | null;
 };
 
@@ -196,7 +202,9 @@ export const getDealByAccount = createServerFn({ method: "POST" })
         .order("occurred_at", { ascending: false }),
       supabase
         .from("ai_suggestions")
-        .select("status, next_step, objection, follow_up, health")
+        .select(
+          "status, next_step, objection, follow_up, health, reasoning, confidence, auto_filled_fields, total_fields, auto_filled_field_names, impact_preview",
+        )
         .eq("deal_id", deal.id)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -222,7 +230,25 @@ export const getDealByAccount = createServerFn({ method: "POST" })
         source_label: s.source_label,
         content: s.content,
       })),
-      latestSuggestion: sug ?? null,
+      latestSuggestion: sug
+        ? {
+            status: sug.status,
+            next_step: sug.next_step,
+            objection: sug.objection,
+            follow_up: sug.follow_up,
+            health: sug.health,
+            reasoning: sug.reasoning,
+            confidence: sug.confidence,
+            auto_filled_fields: sug.auto_filled_fields,
+            total_fields: sug.total_fields,
+            auto_filled_field_names: Array.isArray(sug.auto_filled_field_names)
+              ? (sug.auto_filled_field_names as string[])
+              : [],
+            impact_preview: Array.isArray(sug.impact_preview)
+              ? (sug.impact_preview as string[])
+              : [],
+          }
+        : null,
     };
   });
 

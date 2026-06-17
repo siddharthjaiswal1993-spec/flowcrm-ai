@@ -3,7 +3,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { acceptSuggestion, getDealByAccount } from "@/lib/deals.functions";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Sparkles,
   Pencil,
@@ -19,6 +19,22 @@ import {
   CalendarDays,
 } from "lucide-react";
 import { acmeSuggestedDefaults } from "./data";
+
+const DEFAULT_AUTO_FIELDS = [
+  "decision criteria",
+  "competitors",
+  "timeline",
+  "budget",
+  "champion",
+  "use case",
+];
+const DEFAULT_IMPACT = [
+  "Add a next step",
+  "Create one follow-up task",
+  "Capture pricing objection",
+];
+const DEFAULT_REASONING =
+  "Pricing concern was found in both call notes and email. No next step exists in CRM.";
 import {
   EditField,
   ImpactItem,
@@ -64,6 +80,18 @@ export function AssistantRecommendationReview() {
   const [followUp, setFollowUp] = useState(acmeSuggestedDefaults.followUp);
   const [health, setHealth] = useState(acmeSuggestedDefaults.health);
 
+  // Hydrate form defaults from the latest persisted suggestion once it loads.
+  const hydratedRef = useRef(false);
+  useEffect(() => {
+    if (hydratedRef.current || !data?.latestSuggestion) return;
+    const s = data.latestSuggestion;
+    if (s.next_step) setNextStep(s.next_step);
+    if (s.objection) setObjection(s.objection);
+    if (s.follow_up) setFollowUp(s.follow_up);
+    if (s.health) setHealth(s.health);
+    hydratedRef.current = true;
+  }, [data]);
+
   const save = useMutation({
     mutationFn: async () => {
       if (!data?.deal.id) throw new Error("Deal not found");
@@ -87,7 +115,26 @@ export function AssistantRecommendationReview() {
   });
 
   const disabled = save.isPending;
-  const alreadyAccepted = data?.latestSuggestion?.status === "accepted" || data?.latestSuggestion?.status === "edited";
+  const sug = data?.latestSuggestion;
+  const alreadyAccepted = sug?.status === "accepted" || sug?.status === "edited";
+  const reasoning = sug?.reasoning ?? DEFAULT_REASONING;
+  const confidenceLabel = (() => {
+    const c = sug?.confidence;
+    if (c == null) return "High";
+    if (c >= 80) return "High";
+    if (c >= 50) return "Medium";
+    return "Low";
+  })();
+  const autoFilledCount = sug?.auto_filled_fields ?? 6;
+  const totalFields = sug?.total_fields ?? 8;
+  const autoFilledNames =
+    sug?.auto_filled_field_names && sug.auto_filled_field_names.length > 0
+      ? sug.auto_filled_field_names
+      : DEFAULT_AUTO_FIELDS;
+  const impactItems =
+    sug?.impact_preview && sug.impact_preview.length > 0
+      ? sug.impact_preview
+      : DEFAULT_IMPACT;
 
   if (isLoading) {
     return (
@@ -209,7 +256,7 @@ export function AssistantRecommendationReview() {
               title="AI suggested update"
               right={
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--success)]/12 text-[color:var(--success)] px-2.5 py-1 text-[11px] font-medium">
-                  <ShieldCheck className="h-3 w-3" /> AI confidence: High
+                  <ShieldCheck className="h-3 w-3" /> AI confidence: {confidenceLabel}
                 </span>
               }
             >
@@ -220,15 +267,13 @@ export function AssistantRecommendationReview() {
                 <Suggestion label="Update deal health" value={health} />
                 <Suggestion
                   label="Auto-fill required fields"
-                  value="6 of 8 fields (decision criteria, competitors, timeline, budget, champion, use case)"
+                  value={`${autoFilledCount} of ${totalFields} fields (${autoFilledNames.join(", ")})`}
                 />
               </div>
 
               <div className="mt-4 rounded-md border border-border bg-muted/40 p-3 text-xs text-foreground leading-relaxed">
                 <span className="font-medium text-foreground">Reasoning · </span>
-                <span className="text-muted-foreground">
-                  Pricing concern was found in both call notes and email. No next step exists in CRM.
-                </span>
+                <span className="text-muted-foreground">{reasoning}</span>
               </div>
             </SectionCard>
 
@@ -242,9 +287,9 @@ export function AssistantRecommendationReview() {
               }
             >
               <ul className="space-y-1.5 text-sm text-foreground">
-                <ImpactItem>Add a next step</ImpactItem>
-                <ImpactItem>Create one follow-up task</ImpactItem>
-                <ImpactItem>Capture pricing objection</ImpactItem>
+                {impactItems.map((it) => (
+                  <ImpactItem key={it}>{it}</ImpactItem>
+                ))}
                 <ImpactItem>
                   Improve CRM completeness from <span className="font-medium">2 / 8</span> to{" "}
                   <span className="font-medium text-[color:var(--success)]">8 / 8</span> fields
