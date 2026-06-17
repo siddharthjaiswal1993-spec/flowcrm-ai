@@ -1,6 +1,8 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
+import { getCurrentProfile } from "@/lib/insights.functions";
 import {
   LayoutDashboard,
   ListChecks,
@@ -39,6 +41,13 @@ export function AppLayout({
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const fetchProfile = useServerFn(getCurrentProfile);
+  const { data: profile } = useQuery({
+    queryKey: ["current-profile"],
+    queryFn: () => fetchProfile(),
+    staleTime: 60_000,
+  });
+  const initials = profile?.avatar_initials ?? "··";
 
   const handleSignOut = async () => {
     await qc.cancelQueries();
@@ -113,8 +122,11 @@ export function AppLayout({
           >
             <LogOut className="h-4 w-4" />
           </button>
-          <div className="h-9 w-9 rounded-full bg-primary/15 text-primary grid place-items-center text-xs font-semibold">
-            RS
+          <div
+            title={profile?.full_name ?? "You"}
+            className="h-9 w-9 rounded-full bg-primary/15 text-primary grid place-items-center text-xs font-semibold"
+          >
+            {initials}
           </div>
           {actions}
         </header>

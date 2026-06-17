@@ -8,6 +8,10 @@ import {
   resetDemoData,
 } from "@/lib/deals.functions";
 import {
+  getLatestCrmHealth,
+  listWorkflowInsights,
+} from "@/lib/insights.functions";
+import {
   AlertTriangle,
   ArrowRight,
   FileWarning,
@@ -19,23 +23,32 @@ import {
   Loader2,
   RotateCcw,
 } from "lucide-react";
-import {
-  workflowBlockers,
-  voiceOfUser,
-  aiSuggestionShortcuts,
-} from "./data";
 
 /** PRD screen #1 — Adoption Diagnostic Dashboard. */
 export function AdoptionDiagnosticDashboard() {
   const fetchMetrics = useServerFn(getDashboardMetrics);
   const seedFn = useServerFn(seedDemoData);
   const resetFn = useServerFn(resetDemoData);
+  const fetchInsights = useServerFn(listWorkflowInsights);
+  const fetchHealth = useServerFn(getLatestCrmHealth);
   const qc = useQueryClient();
 
   const { data: m, isLoading } = useQuery({
     queryKey: ["dashboard-metrics"],
     queryFn: () => fetchMetrics(),
   });
+  const { data: insights = [] } = useQuery({
+    queryKey: ["workflow-insights"],
+    queryFn: () => fetchInsights(),
+  });
+  const { data: health } = useQuery({
+    queryKey: ["crm-health"],
+    queryFn: () => fetchHealth(),
+  });
+
+  const workflowBlockers = insights.filter((i) => i.type === "blocker");
+  const voiceOfUser = insights.filter((i) => i.type === "quote");
+  const aiSuggestionShortcuts = insights.filter((i) => i.type === "ai_shortcut");
 
   const seed = useMutation({
     mutationFn: () => seedFn(),
@@ -50,7 +63,7 @@ export function AdoptionDiagnosticDashboard() {
   const accepted = (m?.acceptedSuggestions ?? 0) > 0;
   const dataQuality = hasData
     ? Math.round((1 - (m!.stale + m!.missingNext) / Math.max(1, m!.totalDeals * 2)) * 100)
-    : 54;
+    : health?.data_quality_score ?? 54;
 
   return (
     <AppLayout
@@ -78,7 +91,7 @@ export function AdoptionDiagnosticDashboard() {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <InsightStat icon={AlertTriangle} label="Stale records" value={`${m?.stale ?? 0}`} tone="danger" />
               <InsightStat icon={FileWarning} label="Missing next steps" value={`${m?.missingNext ?? 0}`} tone="warning" />
-              <InsightStat icon={Copy} label="Duplicate accounts" value="17%" tone="warning" />
+              <InsightStat icon={Copy} label="Duplicate accounts" value={`${health?.duplicate_accounts_pct ?? 17}%`} tone="warning" />
               <InsightStat icon={Gauge} label="Data quality" value={`${dataQuality} / 100`} tone="warning" />
             </div>
           </Section>
@@ -86,11 +99,11 @@ export function AdoptionDiagnosticDashboard() {
           <Section title="Top workflow blockers" description="Why reps avoid the CRM today.">
             <div className="rounded-xl border border-border bg-card divide-y divide-border">
               {workflowBlockers.map((b, i) => (
-                <div key={b} className="flex items-center gap-4 px-5 py-3 text-sm">
+                <div key={b.id} className="flex items-center gap-4 px-5 py-3 text-sm">
                   <div className="h-6 w-6 rounded-md bg-muted text-muted-foreground grid place-items-center text-xs font-medium">
                     {i + 1}
                   </div>
-                  <span className="text-foreground">{b}</span>
+                  <span className="text-foreground">{b.text}</span>
                 </div>
               ))}
             </div>
@@ -99,7 +112,7 @@ export function AdoptionDiagnosticDashboard() {
           <Section title="Voice of the user" description="From last quarter's adoption interviews.">
             <div className="grid md:grid-cols-2 gap-4">
               {voiceOfUser.map((q) => (
-                <Quote key={q.who} text={q.text} who={q.who} />
+                <Quote key={q.id} text={q.text} who={q.attribution ?? "Anonymous"} />
               ))}
             </div>
           </Section>
@@ -152,11 +165,11 @@ export function AdoptionDiagnosticDashboard() {
               </div>
               {aiSuggestionShortcuts.map((s) => (
                 <Link
-                  key={s}
+                  key={s.id}
                   to="/workspace"
                   className="flex items-center justify-between text-sm rounded-md border border-border px-3 py-2 hover:bg-muted/60"
                 >
-                  <span className="text-foreground">{s}</span>
+                  <span className="text-foreground">{s.text}</span>
                   <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
                 </Link>
               ))}

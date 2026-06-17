@@ -2,30 +2,63 @@ import { AppLayout, KpiCard, Section } from "@/components/AppLayout";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getDashboardMetrics } from "@/lib/deals.functions";
+import {
+  getLatestCrmHealth,
+  listManagerActions,
+  listTeamMetrics,
+  listWorkflowInsights,
+} from "@/lib/insights.functions";
 import { Download, BellRing, Target } from "lucide-react";
 import {
-  adoptionInsights,
   labelForTone,
-  teams,
   toneForAdoption,
 } from "./data";
+
+const ACTION_ICONS: Record<string, typeof Target> = {
+  review_gaps: Target,
+  send_nudges: BellRing,
+  export_summary: Download,
+};
 
 /** PRD screen #6 — Manager View (Team Adoption and Data Quality). */
 export function ManagerView() {
   const fetchMetrics = useServerFn(getDashboardMetrics);
+  const fetchTeams = useServerFn(listTeamMetrics);
+  const fetchInsights = useServerFn(listWorkflowInsights);
+  const fetchActions = useServerFn(listManagerActions);
+  const fetchHealth = useServerFn(getLatestCrmHealth);
+
   const { data: m } = useQuery({
     queryKey: ["dashboard-metrics"],
     queryFn: () => fetchMetrics(),
   });
+  const { data: teams = [] } = useQuery({
+    queryKey: ["team-metrics"],
+    queryFn: () => fetchTeams(),
+  });
+  const { data: insights = [] } = useQuery({
+    queryKey: ["workflow-insights"],
+    queryFn: () => fetchInsights(),
+  });
+  const { data: actions = [] } = useQuery({
+    queryKey: ["manager-actions"],
+    queryFn: () => fetchActions(),
+  });
+  const { data: health } = useQuery({
+    queryKey: ["crm-health"],
+    queryFn: () => fetchHealth(),
+  });
+
+  const adoptionInsights = insights.filter((i) => i.type === "manager_insight");
   const dataQuality = m && m.totalDeals > 0
     ? Math.round((1 - (m.stale + m.missingNext) / Math.max(1, m.totalDeals * 2)) * 100)
-    : 54;
+    : health?.data_quality_score ?? 54;
 
   return (
     <AppLayout title="Team Adoption and Data Quality" subtitle="Manager view · last 7 days">
       <div className="p-6 space-y-6">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          <KpiCard label="CRM adoption" value="18%" hint="Weekly active" tone="danger" />
+          <KpiCard label="CRM adoption" value={`${health?.crm_adoption_pct ?? 18}%`} hint="Weekly active" tone="danger" />
           <KpiCard label="My pipeline" value={`${m?.totalDeals ?? 0} deals`} />
           <KpiCard label="Stale records" value={`${m?.stale ?? 0}`} tone="danger" />
           <KpiCard label="Pending AI updates" value={`${m?.pendingSuggestions ?? 0}`} tone="warning" />
@@ -43,7 +76,7 @@ export function ManagerView() {
                   <div className="col-span-2 text-right">Status</div>
                 </div>
                 {teams.map((t) => {
-                  const tone = toneForAdoption(t.adoption);
+                  const tone = toneForAdoption(t.adoption_pct);
                   const toneCls =
                     tone === "success"
                       ? "bg-[color:var(--success)]"
@@ -52,17 +85,17 @@ export function ManagerView() {
                         : "bg-[color:var(--danger)]";
                   return (
                     <div
-                      key={t.name}
+                      key={t.id}
                       className="grid grid-cols-12 px-5 py-3.5 items-center border-b border-border last:border-0 text-sm"
                     >
-                      <div className="col-span-5 font-medium text-foreground">{t.name}</div>
-                      <div className="col-span-2 text-muted-foreground">{t.reps}</div>
+                      <div className="col-span-5 font-medium text-foreground">{t.team_name}</div>
+                      <div className="col-span-2 text-muted-foreground">{t.rep_count}</div>
                       <div className="col-span-3">
                         <div className="flex items-center gap-2">
                           <div className="h-1.5 w-32 rounded-full bg-border overflow-hidden">
-                            <div className={`h-full ${toneCls}`} style={{ width: `${t.adoption}%` }} />
+                            <div className={`h-full ${toneCls}`} style={{ width: `${t.adoption_pct}%` }} />
                           </div>
-                          <span className="text-xs font-medium text-foreground">{t.adoption}%</span>
+                          <span className="text-xs font-medium text-foreground">{t.adoption_pct}%</span>
                         </div>
                       </div>
                       <div className="col-span-2 text-right">
@@ -87,8 +120,8 @@ export function ManagerView() {
             <Section title="Insights" description="What's driving the adoption gap.">
               <div className="grid md:grid-cols-2 gap-3">
                 {adoptionInsights.map((t) => (
-                  <div key={t} className="rounded-xl border border-border bg-card p-4 text-sm text-foreground">
-                    {t}
+                  <div key={t.id} className="rounded-xl border border-border bg-card p-4 text-sm text-foreground">
+                    {t.text}
                   </div>
                 ))}
               </div>
@@ -102,17 +135,17 @@ export function ManagerView() {
                 Drive adoption without adding more required fields.
               </p>
               <div className="mt-4 space-y-2">
-                <ActionBtn icon={Target} label="Review adoption gaps" />
-                <ActionBtn icon={BellRing} label="Send smart nudges" />
-                <ActionBtn icon={Download} label="Export adoption summary" />
+                {actions.map((a) => (
+                  <ActionBtn key={a.id} icon={ACTION_ICONS[a.action_type] ?? Target} label={a.label} />
+                ))}
               </div>
             </div>
             <div className="rounded-xl border border-border bg-card p-5">
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Forecast impact</div>
               <div className="mt-1 text-foreground text-sm leading-relaxed">
                 Closing the data-quality gap on the top 30 stale deals would lift forecast confidence from{" "}
-                <span className="font-semibold">41%</span> to{" "}
-                <span className="font-semibold text-[color:var(--success)]">68%</span>.
+                <span className="font-semibold">{health?.forecast_confidence_pct ?? 41}%</span> to{" "}
+                <span className="font-semibold text-[color:var(--success)]">{health?.forecast_confidence_target_pct ?? 68}%</span>.
               </div>
             </div>
           </aside>
