@@ -3,7 +3,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { acceptSuggestion, getDealByAccount } from "@/lib/deals.functions";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Sparkles,
   Pencil,
@@ -80,16 +80,17 @@ export function AssistantRecommendationReview() {
   const [followUp, setFollowUp] = useState(acmeSuggestedDefaults.followUp);
   const [health, setHealth] = useState(acmeSuggestedDefaults.health);
 
-  // Hydrate defaults from the latest persisted suggestion once it loads.
-  const hydratedRef = useState({ done: false })[0];
-  if (!hydratedRef.done && data?.latestSuggestion) {
+  // Hydrate form defaults from the latest persisted suggestion once it loads.
+  const hydratedRef = useRef(false);
+  useEffect(() => {
+    if (hydratedRef.current || !data?.latestSuggestion) return;
     const s = data.latestSuggestion;
     if (s.next_step) setNextStep(s.next_step);
     if (s.objection) setObjection(s.objection);
     if (s.follow_up) setFollowUp(s.follow_up);
     if (s.health) setHealth(s.health);
-    hydratedRef.done = true;
-  }
+    hydratedRef.current = true;
+  }, [data]);
 
   const save = useMutation({
     mutationFn: async () => {
