@@ -11,6 +11,7 @@ import {
   getLatestCrmHealth,
   listWorkflowInsights,
 } from "@/lib/insights.functions";
+import { ErrorCard, KpiSkeleton } from "@/components/feedback";
 import {
   AlertTriangle,
   ArrowRight,
@@ -33,7 +34,7 @@ export function AdoptionDiagnosticDashboard() {
   const fetchHealth = useServerFn(getLatestCrmHealth);
   const qc = useQueryClient();
 
-  const { data: m, isLoading } = useQuery({
+  const { data: m, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ["dashboard-metrics"],
     queryFn: () => fetchMetrics(),
   });
@@ -52,11 +53,19 @@ export function AdoptionDiagnosticDashboard() {
 
   const seed = useMutation({
     mutationFn: () => seedFn(),
-    onSuccess: () => qc.invalidateQueries(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["dashboard-metrics"] });
+      qc.invalidateQueries({ queryKey: ["my-deals"] });
+      qc.invalidateQueries({ queryKey: ["deal"] });
+    },
   });
   const reset = useMutation({
     mutationFn: () => resetFn(),
-    onSuccess: () => qc.invalidateQueries(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["dashboard-metrics"] });
+      qc.invalidateQueries({ queryKey: ["my-deals"] });
+      qc.invalidateQueries({ queryKey: ["deal"] });
+    },
   });
 
   const hasData = (m?.totalDeals ?? 0) > 0;
@@ -72,12 +81,34 @@ export function AdoptionDiagnosticDashboard() {
     >
       <div className="grid grid-cols-12 gap-6 p-6">
         <div className="col-span-12 xl:col-span-9 space-y-6">
-          {!isLoading && !hasData && (
+          {isError && (
+            <ErrorCard onRetry={() => refetch()} busy={isFetching} />
+          )}
+          {seed.isError && (
+            <ErrorCard
+              title="Could not seed demo data."
+              description="Check your connection and try again."
+              onRetry={() => seed.mutate()}
+              busy={seed.isPending}
+            />
+          )}
+          {reset.isError && (
+            <ErrorCard
+              title="Could not reset demo data."
+              description="Check your connection and try again."
+              onRetry={() => reset.mutate()}
+              busy={reset.isPending}
+            />
+          )}
+          {!isLoading && !isError && !hasData && (
             <SeedBanner busy={seed.isPending} onSeed={() => seed.mutate()} />
           )}
           {hasData && accepted && <AcceptedBanner pending={m!.pendingSuggestions} />}
 
           <Section title="CRM health at a glance" description="Adoption KPIs from your workspace.">
+            {isLoading ? (
+              <KpiSkeleton count={5} />
+            ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
               <KpiCard label="My deals" value={`${m?.totalDeals ?? 0}`} hint="In your pipeline" />
               <KpiCard label="Stale deals" value={`${m?.stale ?? 0}`} hint="No activity 14+ days" tone="danger" />
@@ -85,6 +116,7 @@ export function AdoptionDiagnosticDashboard() {
               <KpiCard label="Pending AI updates" value={`${m?.pendingSuggestions ?? 0}`} hint="Awaiting review" />
               <KpiCard label="Accepted AI updates" value={`${m?.acceptedSuggestions ?? 0}`} hint="Saved to CRM" tone="success" />
             </div>
+            )}
           </Section>
 
           <Section title="Why adoption is low" description="Data quality signals that erode trust.">
