@@ -3,7 +3,9 @@ import { AppLayout } from "@/components/AppLayout";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { acceptSuggestion, getDealByAccount } from "@/lib/deals.functions";
+import { seedDemoData } from "@/lib/deals.functions";
 import { useEffect, useRef, useState } from "react";
+import { DealDetailSkeleton, ErrorCard } from "@/components/feedback";
 import {
   Sparkles,
   Pencil,
@@ -65,9 +67,18 @@ export function AssistantRecommendationReview() {
   const fetchDeal = useServerFn(getDealByAccount);
   const acceptFn = useServerFn(acceptSuggestion);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ["deal", ACCOUNT],
     queryFn: () => fetchDeal({ data: { account: ACCOUNT } }),
+  });
+  const seedFn = useServerFn(seedDemoData);
+  const seed = useMutation({
+    mutationFn: () => seedFn(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["deal"] });
+      qc.invalidateQueries({ queryKey: ["my-deals"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-metrics"] });
+    },
   });
 
   const [editOpen, setEditOpen] = useState(false);
@@ -108,7 +119,10 @@ export function AssistantRecommendationReview() {
     },
     onMutate: () => setSaveState("saving"),
     onSuccess: () => {
-      qc.invalidateQueries();
+      qc.invalidateQueries({ queryKey: ["deal"] });
+      qc.invalidateQueries({ queryKey: ["my-deals"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-metrics"] });
+      setEditOpen(false);
       navigate({ to: "/" });
     },
     onError: () => setSaveState("error"),
@@ -139,8 +153,16 @@ export function AssistantRecommendationReview() {
   if (isLoading) {
     return (
       <AppLayout title="AI CRM Assistant" subtitle="Loading…">
-        <div className="p-12 text-center text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 inline animate-spin mr-2" /> Loading deal…
+        <DealDetailSkeleton />
+      </AppLayout>
+    );
+  }
+
+  if (isError) {
+    return (
+      <AppLayout title="AI CRM Assistant" subtitle="Could not load deal">
+        <div className="p-6 max-w-2xl">
+          <ErrorCard onRetry={() => refetch()} busy={isFetching} />
         </div>
       </AppLayout>
     );
@@ -149,13 +171,34 @@ export function AssistantRecommendationReview() {
   if (!data) {
     return (
       <AppLayout title="AI CRM Assistant" subtitle="Deal not found">
-        <div className="p-12 text-center">
-          <p className="text-sm text-muted-foreground">
-            We couldn't find {ACCOUNT} in your workspace. Seed demo data from the dashboard first.
-          </p>
-          <Link to="/" className="mt-4 inline-block text-sm text-primary hover:underline">
-            Go to dashboard
-          </Link>
+        <div className="p-6 max-w-2xl">
+          <div className="rounded-xl border border-border bg-card p-6 text-center">
+            <div className="text-base font-semibold text-foreground">Deal not found.</div>
+            <p className="text-sm text-muted-foreground mt-1">
+              Seed demo data or return to My CRM Work.
+            </p>
+            <div className="mt-5 flex flex-wrap justify-center gap-2">
+              <button
+                onClick={() => seed.mutate()}
+                disabled={seed.isPending}
+                className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              >
+                {seed.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                Seed demo data
+              </button>
+              <Link
+                to="/workspace"
+                className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
+              >
+                Back to My CRM Work
+              </Link>
+            </div>
+            {seed.isError && (
+              <p className="mt-3 text-xs text-[color:var(--danger)]">
+                Could not seed demo data. Check your connection and try again.
+              </p>
+            )}
+          </div>
         </div>
       </AppLayout>
     );
@@ -329,6 +372,10 @@ export function AssistantRecommendationReview() {
                     <>
                       <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving…
                     </>
+                  ) : alreadyAccepted ? (
+                    <>
+                      <Sparkles className="h-3.5 w-3.5" /> Overwrite AI Update
+                    </>
                   ) : (
                     <>
                       <Sparkles className="h-3.5 w-3.5" /> Accept AI Update
@@ -376,15 +423,26 @@ export function AssistantRecommendationReview() {
             </button>
             <button
               onClick={() => {
-                setEditOpen(false);
                 setEdited(true);
                 save.mutate();
               }}
-              className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+              disabled={save.isPending}
+              className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
             >
-              Save edited update
+              {save.isPending ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving…
+                </>
+              ) : (
+                "Save edited update"
+              )}
             </button>
           </div>
+          {saveState === "error" && (
+            <div className="mt-3 text-right text-xs text-[color:var(--danger)]">
+              Could not save update. Your edits are still here.
+            </div>
+          )}
         </Modal>
       )}
 
@@ -439,7 +497,7 @@ export function AssistantRecommendationReview() {
         </SaveOverlay>
       )}
 
-      {saveState === "error" && (
+      {saveState === "error" && !editOpen && (
         <Modal onClose={() => setSaveState("idle")}>
           <div className="flex items-start gap-3">
             <div className="h-10 w-10 rounded-full bg-[color:var(--danger)]/10 text-[color:var(--danger)] grid place-items-center shrink-0">

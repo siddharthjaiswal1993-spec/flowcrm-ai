@@ -9,6 +9,8 @@ import {
   listWorkflowInsights,
 } from "@/lib/insights.functions";
 import { Download, BellRing, Target } from "lucide-react";
+import { ErrorCard, KpiSkeleton, SkeletonBlock, EmptyCard } from "@/components/feedback";
+import { Users } from "lucide-react";
 import {
   labelForTone,
   toneForAdoption,
@@ -28,11 +30,23 @@ export function ManagerView() {
   const fetchActions = useServerFn(listManagerActions);
   const fetchHealth = useServerFn(getLatestCrmHealth);
 
-  const { data: m } = useQuery({
+  const {
+    data: m,
+    isLoading: mLoading,
+    isError: mError,
+    refetch: refetchMetrics,
+    isFetching: mFetching,
+  } = useQuery({
     queryKey: ["dashboard-metrics"],
     queryFn: () => fetchMetrics(),
   });
-  const { data: teams = [] } = useQuery({
+  const {
+    data: teams = [],
+    isLoading: teamsLoading,
+    isError: teamsError,
+    refetch: refetchTeams,
+    isFetching: teamsFetching,
+  } = useQuery({
     queryKey: ["team-metrics"],
     queryFn: () => fetchTeams(),
   });
@@ -57,6 +71,19 @@ export function ManagerView() {
   return (
     <AppLayout title="Team Adoption and Data Quality" subtitle="Manager view · last 7 days">
       <div className="p-6 space-y-6">
+        {(mError || teamsError) && (
+          <ErrorCard
+            onRetry={() => {
+              if (mError) refetchMetrics();
+              if (teamsError) refetchTeams();
+            }}
+            busy={mFetching || teamsFetching}
+          />
+        )}
+
+        {mLoading ? (
+          <KpiSkeleton count={5} />
+        ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           <KpiCard label="CRM adoption" value={`${health?.crm_adoption_pct ?? 18}%`} hint="Weekly active" tone="danger" />
           <KpiCard label="My pipeline" value={`${m?.totalDeals ?? 0} deals`} />
@@ -64,10 +91,24 @@ export function ManagerView() {
           <KpiCard label="Pending AI updates" value={`${m?.pendingSuggestions ?? 0}`} tone="warning" />
           <KpiCard label="Data quality" value={`${dataQuality} / 100`} tone="warning" />
         </div>
+        )}
 
         <div className="grid grid-cols-12 gap-6">
           <div className="col-span-12 lg:col-span-8 space-y-6">
             <Section title="Adoption by team" description="Weekly active CRM users as a share of team size.">
+              {teamsLoading ? (
+                <div className="space-y-2">
+                  <SkeletonBlock className="h-10 w-full" />
+                  <SkeletonBlock className="h-10 w-full" />
+                  <SkeletonBlock className="h-10 w-full" />
+                </div>
+              ) : teams.length === 0 ? (
+                <EmptyCard
+                  icon={Users}
+                  title="No team adoption data yet."
+                  description="Team metrics will appear after reps start using the CRM workspace."
+                />
+              ) : (
               <div className="rounded-xl border border-border bg-card overflow-hidden">
                 <div className="grid grid-cols-12 px-5 py-3 text-[11px] uppercase tracking-wide text-muted-foreground bg-muted/40 border-b border-border">
                   <div className="col-span-5">Team</div>
@@ -115,6 +156,7 @@ export function ManagerView() {
                   );
                 })}
               </div>
+              )}
             </Section>
 
             <Section title="Insights" description="What's driving the adoption gap.">
