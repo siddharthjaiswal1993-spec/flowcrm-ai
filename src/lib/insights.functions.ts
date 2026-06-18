@@ -133,3 +133,87 @@ export const getCurrentProfile = createServerFn({ method: "GET" })
       avatar_initials: data.avatar_initials ?? initialsOf(data.full_name),
     };
   });
+
+export type AppRole = "rep" | "manager" | "admin";
+
+/** Roles for the signed-in user. Used to gate navigation on the client. */
+export const getMyRoles = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<AppRole[]> => {
+    const { data, error } = await context.supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", context.userId);
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((r) => r.role as AppRole);
+  });
+
+/**
+ * Ensure the signed-in user has a profile row and at least the `rep` role.
+ * Idempotent — safe to call on every sign in. Also lets us collect full_name
+ * and team at signup time and persist them into profiles.
+ */
+export const ensureProfile = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { fullName?: string; team?: string | null }) => ({
+    fullName: typeof data.fullName === "string" ? data.fullName.slice(0, 120) : undefined,
+    team:
+      typeof data.team === "string" && data.team.trim().length > 0
+        ? data.team.trim().slice(0, 80)
+        : null,
+  }))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, claims } = context;
+    const email = (claims?.email as string | undefined) ?? null;
+    const metaName =
+      (claims?.user_metadata as Record<string, unknown> | undefined)?.full_name as
+        | string
+        | undefined;
+    const fullName =
+      data.fullName ?? metaName ?? (email ? email.split("@")[0] : "User");
+    const initials =
+      fullName
+        .trim()
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((p) => p[0]?.toUpperCase() ?? "")
+        .join("") || "?";
+
+    const { data: existing } = await supabase
+      .from("profiles")
+      .select("id, team, full_name")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (!existing) {
+      await supabase.from("profiles").insert({
+        id: userId,
+        full_name: fullName,
+        email,
+        team: data.team,
+        avatar_initials: initials,
+      });
+    } else {
+      const patch: {
+        full_name?: string;
+        team?: string | null;
+        avatar_initials?: string;
+      } = {};
+      if (data.fullName) patch.full_name = data.fullName;
+      if (data.team !== null && !existing.team) patch.team = data.team;
+      if (initials) patch.avatar_initials = initials;
+      if (Object.keys(patch).length > 0) {
+        await supabase.from("profiles").update(patch).eq("id", userId);
+      }
+    }
+
+    // Ensure at least the rep role exists (DB trigger also handles this on signup).
+    const { data: roles } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
+    if (!roles || roles.length === 0) {
+      await supabase.from("user_roles").insert({ user_id: userId, role: "rep" });
+    }
+    return { ok: true };
+  });

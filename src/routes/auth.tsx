@@ -1,32 +1,61 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
+import { useServerFn } from "@tanstack/react-start";
+import { ensureProfile } from "@/lib/insights.functions";
 import { Sparkles, Loader2 } from "lucide-react";
+
+const authSearchSchema = z.object({
+  reason: z.enum(["expired", "signed_out"]).optional(),
+  redirect: z.string().optional(),
+});
 
 export const Route = createFileRoute("/auth")({
   head: () => ({ meta: [{ title: "Sign in — FlowCRM" }] }),
+  validateSearch: authSearchSchema,
   component: AuthPage,
 });
 
 function AuthPage() {
   const navigate = useNavigate();
+  const { reason, redirect } = Route.useSearch();
+  const ensureProfileFn = useServerFn(ensureProfile);
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [team, setTeam] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(
+    reason === "expired"
+      ? "Your session expired. Please sign in to continue."
+      : null,
+  );
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/" });
+      if (data.session) navigate({ to: redirect ?? "/" });
     });
-  }, [navigate]);
+  }, [navigate, redirect]);
+
+  const afterAuth = async () => {
+    try {
+      await ensureProfileFn({
+        data: { fullName: fullName || undefined, team: team || null },
+      });
+    } catch {
+      // Non-fatal: trigger will have created baseline rows.
+    }
+    navigate({ to: redirect ?? "/" });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setNotice(null);
     setBusy(true);
     try {
       if (mode === "signup") {
@@ -35,15 +64,18 @@ function AuthPage() {
           password,
           options: {
             emailRedirectTo: window.location.origin,
-            data: { full_name: fullName || email.split("@")[0] },
+            data: {
+              full_name: fullName || email.split("@")[0],
+              team: team || null,
+            },
           },
         });
         if (error) throw error;
-        navigate({ to: "/" });
+        await afterAuth();
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        navigate({ to: "/" });
+        await afterAuth();
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -54,6 +86,7 @@ function AuthPage() {
 
   const handleGoogle = async () => {
     setError(null);
+    setNotice(null);
     setBusy(true);
     const result = await lovable.auth.signInWithOAuth("google", {
       redirect_uri: window.location.origin,
@@ -63,7 +96,7 @@ function AuthPage() {
       setBusy(false);
     }
     if (!result.redirected && !result.error) {
-      navigate({ to: "/" });
+      await afterAuth();
     }
   };
 
@@ -89,6 +122,12 @@ function AuthPage() {
             : "Start your FlowCRM AI workspace in seconds."}
         </p>
 
+        {notice && (
+          <div className="mt-4 rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-foreground">
+            {notice}
+          </div>
+        )}
+
         <button
           onClick={handleGoogle}
           disabled={busy}
@@ -105,13 +144,23 @@ function AuthPage() {
 
         <form onSubmit={handleSubmit} className="space-y-3">
           {mode === "signup" && (
-            <input
-              type="text"
-              placeholder="Full name"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-            />
+            <>
+              <input
+                type="text"
+                required
+                placeholder="Full name"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+              />
+              <input
+                type="text"
+                placeholder="Team (optional, e.g. North America)"
+                value={team}
+                onChange={(e) => setTeam(e.target.value)}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+              />
+            </>
           )}
           <input
             type="email"

@@ -2,7 +2,7 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
-import { getCurrentProfile } from "@/lib/insights.functions";
+import { getCurrentProfile, getMyRoles, type AppRole } from "@/lib/insights.functions";
 import {
   LayoutDashboard,
   ListChecks,
@@ -17,15 +17,23 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 
-const nav = [
+type NavItem = {
+  to: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  active: boolean;
+  roles?: AppRole[]; // if omitted, visible to all signed-in users
+};
+
+const nav: NavItem[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, active: true },
   { to: "/workspace", label: "My CRM Work", icon: ListChecks, active: true },
   { to: "#", label: "Accounts", icon: Building2, active: false },
   { to: "#", label: "Deals", icon: Briefcase, active: false },
   { to: "#", label: "Data Quality", icon: Database, active: false },
-  { to: "/team", label: "Team Adoption", icon: Users, active: true },
+  { to: "/team", label: "Team Adoption", icon: Users, active: true, roles: ["manager", "admin"] },
   { to: "/assistant", label: "AI Assistant", icon: Sparkles, active: true },
-] as const;
+];
 
 export function AppLayout({
   children,
@@ -42,18 +50,32 @@ export function AppLayout({
   const navigate = useNavigate();
   const qc = useQueryClient();
   const fetchProfile = useServerFn(getCurrentProfile);
+  const fetchRoles = useServerFn(getMyRoles);
   const { data: profile } = useQuery({
     queryKey: ["current-profile"],
     queryFn: () => fetchProfile(),
     staleTime: 60_000,
   });
+  const { data: roles } = useQuery({
+    queryKey: ["my-roles"],
+    queryFn: () => fetchRoles(),
+    staleTime: 60_000,
+  });
   const initials = profile?.avatar_initials ?? "··";
+  const displayName = profile?.full_name ?? "";
+  const firstName = displayName.split(/\s+/)[0] ?? "";
+
+  const visibleNav = nav.filter((item) => {
+    if (!item.roles) return true;
+    if (!roles) return false; // hide gated items until roles load
+    return item.roles.some((r) => roles.includes(r));
+  });
 
   const handleSignOut = async () => {
     await qc.cancelQueries();
     qc.clear();
     await supabase.auth.signOut();
-    navigate({ to: "/auth", replace: true });
+    navigate({ to: "/auth", search: { reason: "signed_out" as const }, replace: true });
   };
 
   return (
@@ -71,7 +93,7 @@ export function AppLayout({
           </div>
         </div>
         <nav className="flex-1 px-2 py-4 space-y-0.5">
-          {nav.map((item) => {
+          {visibleNav.map((item) => {
             const isActive = item.active && pathname === item.to;
             const Icon = item.icon;
             const cls = `flex items-center gap-3 rounded-md px-3 py-2 text-sm transition ${
@@ -115,6 +137,11 @@ export function AppLayout({
           <button className="h-9 w-9 grid place-items-center rounded-md hover:bg-muted text-muted-foreground">
             <Bell className="h-4 w-4" />
           </button>
+          {displayName && (
+            <div className="hidden md:block text-xs font-medium text-foreground max-w-[140px] truncate">
+              {firstName}
+            </div>
+          )}
           <button
             onClick={handleSignOut}
             title="Sign out"
@@ -123,7 +150,7 @@ export function AppLayout({
             <LogOut className="h-4 w-4" />
           </button>
           <div
-            title={profile?.full_name ?? "You"}
+            title={displayName || "You"}
             className="h-9 w-9 rounded-full bg-primary/15 text-primary grid place-items-center text-xs font-semibold"
           >
             {initials}

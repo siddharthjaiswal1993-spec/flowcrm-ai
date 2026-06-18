@@ -478,6 +478,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_access_deal: { Args: { _deal_id: string }; Returns: boolean }
+      get_my_team: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -485,6 +487,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_same_team_as: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "rep" | "manager" | "admin"
