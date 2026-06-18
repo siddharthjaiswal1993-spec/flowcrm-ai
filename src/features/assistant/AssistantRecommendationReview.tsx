@@ -497,7 +497,7 @@ export function AssistantRecommendationReview() {
         </SaveOverlay>
       )}
 
-      {saveState === "error" && (
+      {saveState === "error" && !editOpen && (
         <Modal onClose={() => setSaveState("idle")}>
           <div className="flex items-start gap-3">
             <div className="h-10 w-10 rounded-full bg-[color:var(--danger)]/10 text-[color:var(--danger)] grid place-items-center shrink-0">
