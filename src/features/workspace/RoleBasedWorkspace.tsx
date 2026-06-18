@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listMyDeals, seedDemoData, type DealRow } from "@/lib/deals.functions";
 import { useState } from "react";
+import { DealRowsSkeleton, ErrorCard } from "@/components/feedback";
 import {
   Sparkles,
   AlertTriangle,
@@ -52,14 +53,18 @@ export function RoleBasedWorkspace() {
   const qc = useQueryClient();
   const [tab, setTab] = useState<RoleTab>("Sales Rep");
 
-  const { data: deals = [], isLoading } = useQuery({
+  const { data: deals = [], isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ["my-deals"],
     queryFn: () => fetchDeals(),
   });
 
   const seed = useMutation({
     mutationFn: () => seedFn(),
-    onSuccess: () => qc.invalidateQueries(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["my-deals"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-metrics"] });
+      qc.invalidateQueries({ queryKey: ["deal"] });
+    },
   });
 
   const stale = deals.filter((d) => d.status === "Stale" || d.status === "At risk").length;
@@ -120,10 +125,10 @@ export function RoleBasedWorkspace() {
 
         {tab === "Sales Rep" ? (
           <Section title="Today's priority deals" description="Tap Fix with AI to update a record in seconds.">
-            {isLoading ? (
-              <div className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin inline mr-2" /> Loading deals…
-              </div>
+            {isError ? (
+              <ErrorCard onRetry={() => refetch()} busy={isFetching} />
+            ) : isLoading ? (
+              <DealRowsSkeleton count={4} />
             ) : deals.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center">
                 <Database className="h-6 w-6 text-muted-foreground mx-auto" />
@@ -131,6 +136,11 @@ export function RoleBasedWorkspace() {
                 <p className="text-xs text-muted-foreground mt-1">
                   Seed the demo data to walk the AI golden path.
                 </p>
+                {seed.isError && (
+                  <p className="mt-2 text-xs text-[color:var(--danger)]">
+                    Could not seed demo data. Check your connection and try again.
+                  </p>
+                )}
                 <button
                   onClick={() => seed.mutate()}
                   disabled={seed.isPending}
