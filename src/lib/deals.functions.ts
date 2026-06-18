@@ -277,6 +277,31 @@ export const acceptSuggestion = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const now = new Date().toISOString();
+
+    // Idempotency guard: if the most recent suggestion for this deal is already
+    // an accepted/edited row with identical content (i.e. a spam click that
+    // raced past the disabled button) we treat it as a no-op rather than
+    // inserting a duplicate row.
+    const { data: latest } = await supabase
+      .from("ai_suggestions")
+      .select("status, next_step, objection, follow_up, health, reviewed_at")
+      .eq("deal_id", data.dealId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const sameContent =
+      latest &&
+      (latest.status === "accepted" || latest.status === "edited") &&
+      latest.next_step === data.nextStep &&
+      latest.objection === data.objection &&
+      latest.follow_up === data.followUp &&
+      latest.health === data.health &&
+      latest.reviewed_at &&
+      Date.now() - new Date(latest.reviewed_at).getTime() < 60_000;
+    if (sameContent) {
+      return { ok: true, deduped: true } as const;
+    }
+
     const { error: insertError } = await supabase.from("ai_suggestions").insert({
       deal_id: data.dealId,
       next_step: data.nextStep,
@@ -302,7 +327,7 @@ export const acceptSuggestion = createServerFn({ method: "POST" })
       .eq("id", data.dealId);
     if (updateError) throw new Error(updateError.message);
 
-    return { ok: true };
+    return { ok: true, deduped: false } as const;
   });
 
 /** Seed the four demo deals + signals for the current user. Idempotent. */
