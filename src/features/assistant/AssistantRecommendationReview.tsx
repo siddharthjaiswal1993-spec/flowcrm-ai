@@ -119,7 +119,10 @@ export function AssistantRecommendationReview() {
     },
     onMutate: () => setSaveState("saving"),
     onSuccess: () => {
-      qc.invalidateQueries();
+      qc.invalidateQueries({ queryKey: ["deal"] });
+      qc.invalidateQueries({ queryKey: ["my-deals"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-metrics"] });
+      setEditOpen(false);
       navigate({ to: "/" });
     },
     onError: () => setSaveState("error"),
@@ -420,15 +423,26 @@ export function AssistantRecommendationReview() {
             </button>
             <button
               onClick={() => {
-                setEditOpen(false);
                 setEdited(true);
                 save.mutate();
               }}
-              className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+              disabled={save.isPending}
+              className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
             >
-              Save edited update
+              {save.isPending ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving…
+                </>
+              ) : (
+                "Save edited update"
+              )}
             </button>
           </div>
+          {saveState === "error" && (
+            <div className="mt-3 text-right text-xs text-[color:var(--danger)]">
+              Could not save update. Your edits are still here.
+            </div>
+          )}
         </Modal>
       )}
 
