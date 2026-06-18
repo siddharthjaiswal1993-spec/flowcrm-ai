@@ -194,7 +194,11 @@ export const ensureProfile = createServerFn({ method: "POST" })
         avatar_initials: initials,
       });
     } else {
-      const patch: Record<string, unknown> = {};
+      const patch: {
+        full_name?: string;
+        team?: string | null;
+        avatar_initials?: string;
+      } = {};
       if (data.fullName) patch.full_name = data.fullName;
       if (data.team !== null && !existing.team) patch.team = data.team;
       if (initials) patch.avatar_initials = initials;
