@@ -37,11 +37,25 @@ function AuthPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: redirect ?? "/" });
+      if (data.session) navigate({ to: redirect ?? "/", replace: true });
     });
   }, [navigate, redirect]);
 
+  const waitForSession = async () => {
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      const { data } = await supabase.auth.getSession();
+      if (data.session?.access_token) return data.session;
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    }
+    return null;
+  };
+
   const afterAuth = async () => {
+    const session = await waitForSession();
+    if (!session) {
+      setNotice("Sign-in is still finishing. Please try Continue again in a moment.");
+      return;
+    }
     try {
       await ensureProfileFn({
         data: { fullName: fullName || undefined, team: team || null },
@@ -49,7 +63,7 @@ function AuthPage() {
     } catch {
       // Non-fatal: trigger will have created baseline rows.
     }
-    navigate({ to: redirect ?? "/" });
+    navigate({ to: redirect ?? "/", replace: true });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -59,7 +73,7 @@ function AuthPage() {
     setBusy(true);
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -71,6 +85,10 @@ function AuthPage() {
           },
         });
         if (error) throw error;
+        if (!data.session) {
+          setNotice("Check your email to confirm the account, then sign in.");
+          return;
+        }
         await afterAuth();
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -119,7 +137,7 @@ function AuthPage() {
         <p className="text-xs text-muted-foreground mt-1">
           {mode === "signin"
             ? "Welcome back. Continue to your CRM workspace."
-            : "Start your FlowCRM AI workspace in seconds."}
+            : "Create your FlowCRM workspace, then confirm your email to sign in."}
         </p>
 
         {notice && (
