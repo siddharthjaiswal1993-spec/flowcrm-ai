@@ -137,7 +137,7 @@ function AuthPage() {
         <p className="text-xs text-muted-foreground mt-1">
           {mode === "signin"
             ? "Welcome back. Continue to your CRM workspace."
-            : "Start your FlowCRM AI workspace in seconds."}
+            : "Create your FlowCRM workspace, then confirm your email to sign in."}
         </p>
 
         {notice && (
